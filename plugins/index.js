@@ -39,6 +39,7 @@ window.plugins = {};
 // During the beta, plugins manipulated the global window.plugins data structure directly. This
 // remains possible, but is officially deprecated and may be removed in a future release.
 function registerPlugin(id, plugin) {
+    console.log('FEDS registering', id, plugin);
     const oldPlugin = window.plugins[id];
     if (oldPlugin && oldPlugin.uninitialize) {
         oldPlugin.uninitialize();
@@ -132,8 +133,27 @@ export function loadPlugin(manifest) {
             store.dispatch(removeWebappPlugin(manifest));
         }
 
-        function onLoad() {
+        async function onLoad() {
+            console.log('FEDS onLoad 1');
+            const scope = manifest.id;
+
+            // Initializes the core app's sharing scope
+            await __webpack_init_sharing__('default');
+            console.log('FEDS onLoad 2');
+            const container = window[scope];
+            console.log('FEDS onLoad 3', container);
+
+            await container.init(__webpack_share_scopes__.default);
+            console.log('FEDS onLoad 4');
+
+            // This loads the plugin using the module federation dealy
+            const plugin = await window[scope].get('plugin');
+            console.log('FEDS onLoad 5');
+            await plugin();
+            console.log('FEDS onLoad 6');
+
             initializePlugin(manifest);
+            console.log('FEDS onLoad 7');
             console.log('Loaded ' + describePlugin(manifest)); //eslint-disable-line no-console
             resolve();
         }
@@ -165,8 +185,10 @@ export function loadPlugin(manifest) {
 // initializePlugin creates a registry specific to the plugin and invokes any initialize function
 // on the registered plugin class.
 function initializePlugin(manifest) {
-    // Initialize the plugin
+    console.log('FEDS manifest', manifest);
+    // // Initialize the plugin
     const plugin = window.plugins[manifest.id];
+    console.log('FEDS plugin', plugin);
     const registry = new PluginRegistry(manifest.id);
     if (plugin && plugin.initialize) {
         plugin.initialize(registry, store);
